@@ -1,4 +1,11 @@
-use clap::{Parser, Subcommand};
+use clap::{Parser, Subcommand, ValueEnum};
+
+#[derive(Debug, Clone, Copy, Default, ValueEnum)]
+pub enum OutputFormat {
+    #[default]
+    Table,
+    Json,
+}
 
 #[derive(Parser)]
 #[command(name = "sentry-cli")]
@@ -59,15 +66,27 @@ pub enum IssuesCommands {
         #[arg(long, default_value = "date")]
         sort: String,
 
-        /// Maximum number of results
+        /// Maximum number of results per page
         #[arg(long, default_value = "25")]
         limit: u32,
+
+        /// Output format
+        #[arg(long, short = 'O', value_enum, default_value = "table")]
+        output: OutputFormat,
+
+        /// Fetch all pages (may be slow for large result sets)
+        #[arg(long)]
+        all: bool,
     },
 
     /// View detailed issue information
     View {
         /// Issue ID or short ID
         issue_id: String,
+
+        /// Output format
+        #[arg(long, short = 'O', value_enum, default_value = "table")]
+        output: OutputFormat,
     },
 
     /// Resolve one or more issues

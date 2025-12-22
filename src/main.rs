@@ -29,6 +29,7 @@ async fn run() -> error::Result<()> {
                 cli.org.as_deref(),
                 cli.server.as_deref(),
                 cli.token.as_deref(),
+                cli.verbose,
             )?;
 
             match command {
@@ -38,11 +39,14 @@ async fn run() -> error::Result<()> {
                     query,
                     sort,
                     limit,
+                    output,
+                    all,
                 } => {
-                    issues::list_issues(&client, project, status, query, sort, limit).await?;
+                    issues::list_issues(&client, project, status, query, sort, limit, output, all)
+                        .await?;
                 }
-                IssuesCommands::View { issue_id } => {
-                    issues::view_issue(&client, &issue_id).await?;
+                IssuesCommands::View { issue_id, output } => {
+                    issues::view_issue(&client, &issue_id, output).await?;
                 }
                 IssuesCommands::Resolve {
                     issue_ids,

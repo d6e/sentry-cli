@@ -113,11 +113,12 @@ pub struct StatusDetails {
     pub ignore_until_escalating: Option<bool>,
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct ListIssuesParams {
     pub project: Option<Vec<String>>,
     pub query: Option<String>,
     pub status: Option<IssueStatus>,
     pub sort: Option<String>,
     pub limit: Option<u32>,
+    pub cursor: Option<String>,
 }

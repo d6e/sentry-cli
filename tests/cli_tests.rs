@@ -1,0 +1,101 @@
+use assert_cmd::Command;
+use predicates::prelude::*;
+
+fn sentry_cli() -> Command {
+    Command::cargo_bin("sentry-cli").unwrap()
+}
+
+#[test]
+fn test_help() {
+    sentry_cli()
+        .arg("--help")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("CLI tool for managing Sentry issues"));
+}
+
+#[test]
+fn test_version() {
+    sentry_cli()
+        .arg("--version")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("sentry-cli"));
+}
+
+#[test]
+fn test_issues_help() {
+    sentry_cli()
+        .args(["issues", "--help"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Manage Sentry issues"))
+        .stdout(predicate::str::contains("list"))
+        .stdout(predicate::str::contains("view"))
+        .stdout(predicate::str::contains("resolve"))
+        .stdout(predicate::str::contains("delete"));
+}
+
+#[test]
+fn test_issues_list_help() {
+    sentry_cli()
+        .args(["issues", "list", "--help"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("--project"))
+        .stdout(predicate::str::contains("--status"))
+        .stdout(predicate::str::contains("--output"))
+        .stdout(predicate::str::contains("--all"));
+}
+
+#[test]
+fn test_config_help() {
+    sentry_cli()
+        .args(["config", "--help"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("init"))
+        .stdout(predicate::str::contains("show"))
+        .stdout(predicate::str::contains("set"));
+}
+
+#[test]
+fn test_config_show() {
+    sentry_cli()
+        .args(["config", "show"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Config file:"));
+}
+
+#[test]
+fn test_issues_list_requires_auth() {
+    // Without auth, should fail with auth error
+    sentry_cli()
+        .args(["--org", "test-org", "issues", "list"])
+        .env_remove("SENTRY_AUTH_TOKEN")
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("auth token"));
+}
+
+#[test]
+fn test_issues_list_requires_org() {
+    // Without org, should fail with config error
+    sentry_cli()
+        .args(["--token", "fake-token", "issues", "list"])
+        .env_remove("SENTRY_ORG")
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("organization"));
+}
+
+#[test]
+fn test_output_format_json() {
+    sentry_cli()
+        .args(["issues", "list", "--help"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("json"))
+        .stdout(predicate::str::contains("table"));
+}
