@@ -59,7 +59,7 @@ pub struct IssueMetadata {
     pub function: Option<String>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Default, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct IssueUpdate {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -80,22 +80,6 @@ pub struct IssueUpdate {
     pub ignore_window: Option<u64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub status_details: Option<StatusDetails>,
-}
-
-impl Default for IssueUpdate {
-    fn default() -> Self {
-        Self {
-            status: None,
-            assigned_to: None,
-            has_seen: None,
-            is_bookmarked: None,
-            merge: None,
-            ignore_duration: None,
-            ignore_count: None,
-            ignore_window: None,
-            status_details: None,
-        }
-    }
 }
 
 #[derive(Debug, Serialize)]
