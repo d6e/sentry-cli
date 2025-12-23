@@ -4,17 +4,19 @@ use crate::cli::args::OutputFormat;
 use crate::error::Result;
 use crate::output::{print_issues_json, print_issues_table};
 
-pub async fn list_issues(
-    client: &SentryClient,
-    project: Option<String>,
-    status: Option<String>,
-    query: Option<String>,
-    sort: String,
-    limit: u32,
-    output: OutputFormat,
-    all: bool,
-) -> Result<()> {
-    let status_filter = status
+pub struct ListOptions {
+    pub project: Option<String>,
+    pub status: Option<String>,
+    pub query: Option<String>,
+    pub sort: String,
+    pub limit: u32,
+    pub output: OutputFormat,
+    pub all: bool,
+}
+
+pub async fn list_issues(client: &SentryClient, options: ListOptions) -> Result<()> {
+    let status_filter = options
+        .status
         .as_ref()
         .and_then(|s| match s.to_lowercase().as_str() {
             "resolved" => Some(IssueStatus::Resolved),
@@ -23,24 +25,26 @@ pub async fn list_issues(
             _ => None,
         });
 
-    let projects = project.map(|p| p.split(',').map(|s| s.trim().to_string()).collect());
+    let projects = options
+        .project
+        .map(|p| p.split(',').map(|s| s.trim().to_string()).collect());
 
     let params = ListIssuesParams {
         project: projects,
-        query,
+        query: options.query,
         status: status_filter,
-        sort: Some(sort),
-        limit: Some(limit),
+        sort: Some(options.sort),
+        limit: Some(options.limit),
         cursor: None,
     };
 
-    let issues = if all {
+    let issues = if options.all {
         client.list_all_issues(params).await?
     } else {
         client.list_issues(params).await?
     };
 
-    match output {
+    match options.output {
         OutputFormat::Table => print_issues_table(&issues),
         OutputFormat::Json => print_issues_json(&issues),
     }

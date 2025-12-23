@@ -42,8 +42,16 @@ async fn run() -> error::Result<()> {
                     output,
                     all,
                 } => {
-                    issues::list_issues(&client, project, status, query, sort, limit, output, all)
-                        .await?;
+                    let options = issues::ListOptions {
+                        project,
+                        status,
+                        query,
+                        sort,
+                        limit,
+                        output,
+                        all,
+                    };
+                    issues::list_issues(&client, options).await?;
                 }
                 IssuesCommands::View { issue_id, output } => {
                     issues::view_issue(&client, &issue_id, output).await?;

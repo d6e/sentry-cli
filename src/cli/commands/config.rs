@@ -98,7 +98,13 @@ pub fn set_config(key: &str, value: &str) -> Result<()> {
         .map_err(|e| SentryCliError::Config(format!("Failed to serialize config: {}", e)))?;
 
     fs::write(&path, toml_content)?;
-    print_success(&format!("Updated {} to \"{}\"", key, value));
+
+    // Don't print sensitive values like auth tokens
+    if key == "auth_token" {
+        print_success(&format!("Updated {}", key));
+    } else {
+        print_success(&format!("Updated {} to \"{}\"", key, value));
+    }
 
     Ok(())
 }

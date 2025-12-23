@@ -44,6 +44,46 @@ impl SentryClient {
         Ok(self.base_url.join(&format!("/api/0/{}", path))?)
     }
 
+    fn build_issues_url(&self, params: &ListIssuesParams) -> Result<Url> {
+        let mut url = self.api_url(&format!("organizations/{}/issues/", self.org_slug))?;
+
+        {
+            let mut query_pairs = url.query_pairs_mut();
+
+            if let Some(projects) = &params.project {
+                for project in projects {
+                    query_pairs.append_pair("project", project);
+                }
+            }
+
+            // Combine query and status into a single query parameter
+            let combined_query = match (&params.query, &params.status) {
+                (Some(q), Some(status)) => Some(format!("{} is:{}", q, status)),
+                (Some(q), None) => Some(q.clone()),
+                (None, Some(status)) => Some(format!("is:{}", status)),
+                (None, None) => None,
+            };
+
+            if let Some(q) = combined_query {
+                query_pairs.append_pair("query", &q);
+            }
+
+            if let Some(sort) = &params.sort {
+                query_pairs.append_pair("sort", sort);
+            }
+
+            if let Some(limit) = params.limit {
+                query_pairs.append_pair("limit", &limit.to_string());
+            }
+
+            if let Some(cursor) = &params.cursor {
+                query_pairs.append_pair("cursor", cursor);
+            }
+        }
+
+        Ok(url)
+    }
+
     fn log_request(&self, method: &str, url: &Url) {
         if self.verbose {
             eprintln!("[verbose] {} {}", method, url);
@@ -66,21 +106,33 @@ impl SentryClient {
         if status.is_success() {
             Ok(response.json().await?)
         } else {
-            let error_body = response.text().await.unwrap_or_default();
-            let message = serde_json::from_str::<ApiError>(&error_body)
-                .map(|e| e.detail)
-                .unwrap_or(error_body);
+            Err(self.map_error_response(status, response).await)
+        }
+    }
 
-            Err(match status {
-                StatusCode::UNAUTHORIZED => SentryCliError::Auth(message),
-                StatusCode::FORBIDDEN => SentryCliError::Forbidden(message),
-                StatusCode::NOT_FOUND => SentryCliError::NotFound(message),
-                StatusCode::TOO_MANY_REQUESTS => SentryCliError::RateLimited { retry_after: 60 },
-                _ => SentryCliError::Api {
-                    status: status.as_u16(),
-                    message,
-                },
-            })
+    async fn map_error_response(&self, status: StatusCode, response: Response) -> SentryCliError {
+        // Parse Retry-After header for rate limiting
+        let retry_after = response
+            .headers()
+            .get("retry-after")
+            .and_then(|v| v.to_str().ok())
+            .and_then(|v| v.parse::<u64>().ok())
+            .unwrap_or(60);
+
+        let error_body = response.text().await.unwrap_or_default();
+        let message = serde_json::from_str::<ApiError>(&error_body)
+            .map(|e| e.detail)
+            .unwrap_or(error_body);
+
+        match status {
+            StatusCode::UNAUTHORIZED => SentryCliError::Auth(message),
+            StatusCode::FORBIDDEN => SentryCliError::Forbidden(message),
+            StatusCode::NOT_FOUND => SentryCliError::NotFound(message),
+            StatusCode::TOO_MANY_REQUESTS => SentryCliError::RateLimited { retry_after },
+            _ => SentryCliError::Api {
+                status: status.as_u16(),
+                message,
+            },
         }
     }
 
@@ -103,37 +155,7 @@ impl SentryClient {
     }
 
     pub async fn list_issues(&self, params: ListIssuesParams) -> Result<Vec<Issue>> {
-        let mut url = self.api_url(&format!("organizations/{}/issues/", self.org_slug))?;
-
-        {
-            let mut query = url.query_pairs_mut();
-
-            if let Some(projects) = &params.project {
-                for project in projects {
-                    query.append_pair("project", project);
-                }
-            }
-
-            if let Some(q) = &params.query {
-                query.append_pair("query", q);
-            }
-
-            if let Some(status) = &params.status {
-                query.append_pair("query", &format!("is:{}", status));
-            }
-
-            if let Some(sort) = &params.sort {
-                query.append_pair("sort", sort);
-            }
-
-            if let Some(limit) = params.limit {
-                query.append_pair("limit", &limit.to_string());
-            }
-
-            if let Some(cursor) = &params.cursor {
-                query.append_pair("cursor", cursor);
-            }
-        }
+        let url = self.build_issues_url(&params)?;
 
         self.log_request("GET", &url);
 
@@ -155,45 +177,11 @@ impl SentryClient {
 
         loop {
             let page_params = ListIssuesParams {
-                project: params.project.clone(),
-                query: params.query.clone(),
-                status: params.status,
-                sort: params.sort.clone(),
-                limit: params.limit,
                 cursor: cursor.clone(),
+                ..params.clone()
             };
 
-            let mut url = self.api_url(&format!("organizations/{}/issues/", self.org_slug))?;
-
-            {
-                let mut query = url.query_pairs_mut();
-
-                if let Some(projects) = &page_params.project {
-                    for project in projects {
-                        query.append_pair("project", project);
-                    }
-                }
-
-                if let Some(q) = &page_params.query {
-                    query.append_pair("query", q);
-                }
-
-                if let Some(status) = &page_params.status {
-                    query.append_pair("query", &format!("is:{}", status));
-                }
-
-                if let Some(sort) = &page_params.sort {
-                    query.append_pair("sort", sort);
-                }
-
-                if let Some(limit) = page_params.limit {
-                    query.append_pair("limit", &limit.to_string());
-                }
-
-                if let Some(c) = &page_params.cursor {
-                    query.append_pair("cursor", c);
-                }
-            }
+            let url = self.build_issues_url(&page_params)?;
 
             self.log_request("GET", &url);
             if self.verbose {
@@ -211,15 +199,7 @@ impl SentryClient {
             self.log_response(status);
 
             if !status.is_success() {
-                let error_body = response.text().await.unwrap_or_default();
-                let message = serde_json::from_str::<ApiError>(&error_body)
-                    .map(|e| e.detail)
-                    .unwrap_or(error_body);
-
-                return Err(SentryCliError::Api {
-                    status: status.as_u16(),
-                    message,
-                });
+                return Err(self.map_error_response(status, response).await);
             }
 
             // Get Link header before consuming response

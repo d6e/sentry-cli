@@ -2,7 +2,7 @@ use assert_cmd::Command;
 use predicates::prelude::*;
 
 fn sentry_cli() -> Command {
-    Command::cargo_bin("sentry-cli").unwrap()
+    Command::new(assert_cmd::cargo::cargo_bin!("sentry-cli"))
 }
 
 #[test]
