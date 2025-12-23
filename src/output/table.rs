@@ -11,7 +11,14 @@ pub fn print_issues_table(issues: &[Issue]) {
 
     let mut table = Table::new();
     table.load_preset(UTF8_FULL_CONDENSED);
-    table.set_header(vec!["ID", "Short ID", "Title", "Status", "Events", "Last Seen"]);
+    table.set_header(vec![
+        "ID",
+        "Short ID",
+        "Title",
+        "Status",
+        "Events",
+        "Last Seen",
+    ]);
 
     for issue in issues {
         let status_cell = match issue.status {

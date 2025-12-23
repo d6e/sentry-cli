@@ -19,8 +19,7 @@ impl Config {
             .or_else(|| self.auth_token.clone())
             .ok_or_else(|| {
                 SentryCliError::Auth(
-                    "No auth token found. Set SENTRY_AUTH_TOKEN or configure in config file"
-                        .into(),
+                    "No auth token found. Set SENTRY_AUTH_TOKEN or configure in config file".into(),
                 )
             })
     }
@@ -46,7 +45,6 @@ impl Config {
                 )
             })
     }
-
 }
 
 /// Get the path to the config file

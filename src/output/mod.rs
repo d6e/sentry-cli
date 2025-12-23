@@ -1,5 +1,5 @@
-mod table;
 mod json;
+mod table;
 
-pub use table::*;
 pub use json::*;
+pub use table::*;

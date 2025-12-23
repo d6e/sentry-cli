@@ -11,7 +11,9 @@ fn test_help() {
         .arg("--help")
         .assert()
         .success()
-        .stdout(predicate::str::contains("CLI tool for managing Sentry issues"));
+        .stdout(predicate::str::contains(
+            "CLI tool for managing Sentry issues",
+        ));
 }
 
 #[test]

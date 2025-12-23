@@ -1,5 +1,5 @@
-mod issue;
 mod common;
+mod issue;
 
-pub use issue::*;
 pub use common::*;
+pub use issue::*;

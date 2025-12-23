@@ -36,7 +36,10 @@ pub async fn assign_issues(
                 .assigned_to
                 .map(|a| a.name)
                 .unwrap_or_else(|| "unknown".to_string());
-            print_success(&format!("Issue {} assigned to {}.", issue.short_id, assignee));
+            print_success(&format!(
+                "Issue {} assigned to {}.",
+                issue.short_id, assignee
+            ));
         }
     } else {
         client.update_issues(&issue_ids, update).await?;

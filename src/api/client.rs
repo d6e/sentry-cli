@@ -146,7 +146,12 @@ impl SentryClient {
                 for segment in part.split(';') {
                     let segment = segment.trim();
                     if segment.starts_with("cursor=") {
-                        return Some(segment.trim_start_matches("cursor=").trim_matches('"').to_string());
+                        return Some(
+                            segment
+                                .trim_start_matches("cursor=")
+                                .trim_matches('"')
+                                .to_string(),
+                        );
                     }
                 }
             }
@@ -214,7 +219,11 @@ impl SentryClient {
             all_issues.extend(issues);
 
             if self.verbose {
-                eprintln!("[verbose] Got {} issues (total: {})", count, all_issues.len());
+                eprintln!(
+                    "[verbose] Got {} issues (total: {})",
+                    count,
+                    all_issues.len()
+                );
             }
 
             // Check for next page
