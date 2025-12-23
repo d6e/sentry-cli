@@ -4,7 +4,8 @@ mod config;
 mod error;
 mod output;
 
-use clap::Parser;
+use clap::{CommandFactory, Parser};
+use clap_complete::generate;
 use cli::args::{Cli, Commands, ConfigCommands, IssuesCommands};
 use cli::commands::{config as config_cmd, issues};
 use config::load_config;
@@ -104,6 +105,10 @@ async fn run() -> error::Result<()> {
                 config_cmd::set_config(&key, &value)?;
             }
         },
+        Commands::Completions { shell } => {
+            let mut cmd = Cli::command();
+            generate(shell, &mut cmd, "sentry", &mut std::io::stdout());
+        }
     }
 
     Ok(())
