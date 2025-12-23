@@ -4,6 +4,8 @@ mod config;
 mod error;
 mod output;
 
+use std::error::Error;
+
 use clap::{CommandFactory, Parser};
 use clap_complete::generate;
 use cli::args::{Cli, Commands, ConfigCommands, IssuesCommands};
@@ -11,10 +13,20 @@ use cli::commands::{config as config_cmd, issues};
 use config::load_config;
 use output::print_error;
 
-#[tokio::main]
+#[tokio::main(flavor = "current_thread")]
 async fn main() {
     if let Err(e) = run().await {
         print_error(&e.to_string());
+
+        // Show error chain if verbose flag was passed
+        if std::env::args().any(|arg| arg == "--verbose" || arg == "-v") {
+            let mut source = e.source();
+            while let Some(cause) = source {
+                eprintln!("Caused by: {cause}");
+                source = cause.source();
+            }
+        }
+
         std::process::exit(1);
     }
 }
@@ -22,6 +34,10 @@ async fn main() {
 async fn run() -> error::Result<()> {
     let cli = Cli::parse();
     let config = load_config();
+
+    // Set global output format and quiet mode
+    output::set_format(cli.format);
+    output::set_quiet(cli.quiet);
 
     match cli.command {
         Commands::Issues { command } => {
@@ -40,7 +56,6 @@ async fn run() -> error::Result<()> {
                     query,
                     sort,
                     limit,
-                    output,
                     all,
                 } => {
                     let options = issues::ListOptions {
@@ -49,13 +64,12 @@ async fn run() -> error::Result<()> {
                         query,
                         sort,
                         limit,
-                        output,
                         all,
                     };
                     issues::list_issues(&client, options).await?;
                 }
-                IssuesCommands::View { issue_id, output } => {
-                    issues::view_issue(&client, &issue_id, output).await?;
+                IssuesCommands::View { issue_id } => {
+                    issues::view_issue(&client, &issue_id).await?;
                 }
                 IssuesCommands::Resolve {
                     issue_ids,

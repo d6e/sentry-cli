@@ -1,4 +1,5 @@
 use crate::error::{Result, SentryCliError};
+use directories::ProjectDirs;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
@@ -49,10 +50,9 @@ impl Config {
 
 /// Get the path to the config file
 pub fn config_path() -> PathBuf {
-    dirs::config_dir()
-        .unwrap_or_else(|| PathBuf::from("."))
-        .join("sentry-cli")
-        .join("config.toml")
+    ProjectDirs::from("", "", "sentry-cli")
+        .map(|dirs| dirs.config_dir().join("config.toml"))
+        .unwrap_or_else(|| PathBuf::from(".").join("config.toml"))
 }
 
 /// Load configuration from file (if exists)

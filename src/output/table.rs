@@ -1,7 +1,37 @@
 use crate::api::models::Issue;
 use chrono::{DateTime, Utc};
 use colored::Colorize;
-use comfy_table::{presets::UTF8_FULL_CONDENSED, Cell, Color, Table};
+use tabled::settings::Style;
+use tabled::{Table, Tabled};
+
+#[derive(Tabled)]
+struct IssueRow {
+    #[tabled(rename = "ID")]
+    id: String,
+    #[tabled(rename = "Short ID")]
+    short_id: String,
+    #[tabled(rename = "Title")]
+    title: String,
+    #[tabled(rename = "Status")]
+    status: String,
+    #[tabled(rename = "Events")]
+    events: String,
+    #[tabled(rename = "Last Seen")]
+    last_seen: String,
+}
+
+impl From<&Issue> for IssueRow {
+    fn from(issue: &Issue) -> Self {
+        Self {
+            id: issue.id.clone(),
+            short_id: issue.short_id.clone(),
+            title: truncate_string(&issue.title, 50),
+            status: format_status_colored(&issue.status),
+            events: issue.count.clone(),
+            last_seen: format_relative_time(&issue.last_seen),
+        }
+    }
+}
 
 pub fn print_issues_table(issues: &[Issue]) {
     if issues.is_empty() {
@@ -9,39 +39,8 @@ pub fn print_issues_table(issues: &[Issue]) {
         return;
     }
 
-    let mut table = Table::new();
-    table.load_preset(UTF8_FULL_CONDENSED);
-    table.set_header(vec![
-        "ID",
-        "Short ID",
-        "Title",
-        "Status",
-        "Events",
-        "Last Seen",
-    ]);
-
-    for issue in issues {
-        let status_cell = match issue.status {
-            crate::api::models::IssueStatus::Resolved => Cell::new("resolved").fg(Color::Green),
-            crate::api::models::IssueStatus::Unresolved => Cell::new("unresolved").fg(Color::Red),
-            crate::api::models::IssueStatus::Ignored => Cell::new("ignored").fg(Color::Yellow),
-            crate::api::models::IssueStatus::Reprocessing => {
-                Cell::new("reprocessing").fg(Color::Cyan)
-            }
-        };
-
-        let title = truncate_string(&issue.title, 50);
-        let last_seen = format_relative_time(&issue.last_seen);
-
-        table.add_row(vec![
-            Cell::new(&issue.id),
-            Cell::new(&issue.short_id),
-            Cell::new(title),
-            status_cell,
-            Cell::new(&issue.count),
-            Cell::new(last_seen),
-        ]);
-    }
+    let rows: Vec<IssueRow> = issues.iter().map(IssueRow::from).collect();
+    let table = Table::new(rows).with(Style::rounded()).to_string();
 
     println!("{table}");
     println!("Showing {} issue(s)", issues.len());
@@ -110,6 +109,15 @@ fn format_status(status: &crate::api::models::IssueStatus) -> String {
     }
 }
 
+fn format_status_colored(status: &crate::api::models::IssueStatus) -> String {
+    match status {
+        crate::api::models::IssueStatus::Resolved => "resolved".green().to_string(),
+        crate::api::models::IssueStatus::Unresolved => "unresolved".red().to_string(),
+        crate::api::models::IssueStatus::Ignored => "ignored".yellow().to_string(),
+        crate::api::models::IssueStatus::Reprocessing => "reprocessing".cyan().to_string(),
+    }
+}
+
 fn truncate_string(s: &str, max_len: usize) -> String {
     if s.chars().count() <= max_len {
         s.to_string()
@@ -137,6 +145,9 @@ fn format_relative_time(dt: &DateTime<Utc>) -> String {
 }
 
 pub fn print_success(message: &str) {
+    if super::is_quiet() {
+        return;
+    }
     println!("{} {}", "✓".green(), message);
 }
 

@@ -2,7 +2,7 @@ use crate::api::models::{IssueStatus, ListIssuesParams};
 use crate::api::SentryClient;
 use crate::cli::args::OutputFormat;
 use crate::error::Result;
-use crate::output::{print_issues_json, print_issues_table};
+use crate::output::{get_format, print_issues_json, print_issues_table};
 
 pub struct ListOptions {
     pub project: Option<String>,
@@ -10,7 +10,6 @@ pub struct ListOptions {
     pub query: Option<String>,
     pub sort: String,
     pub limit: u32,
-    pub output: OutputFormat,
     pub all: bool,
 }
 
@@ -44,9 +43,9 @@ pub async fn list_issues(client: &SentryClient, options: ListOptions) -> Result<
         client.list_issues(params).await?
     };
 
-    match options.output {
-        OutputFormat::Table => print_issues_table(&issues),
+    match get_format() {
         OutputFormat::Json => print_issues_json(&issues),
+        OutputFormat::Table | OutputFormat::Compact => print_issues_table(&issues),
     }
 
     Ok(())

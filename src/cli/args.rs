@@ -6,12 +6,18 @@ pub enum OutputFormat {
     #[default]
     Table,
     Json,
+    Compact,
 }
 
 #[derive(Parser)]
 #[command(name = "sentry-cli")]
 #[command(about = "CLI tool for managing Sentry issues", long_about = None)]
 #[command(version)]
+#[command(after_help = "EXAMPLES:
+    sentry issues list --project myproject
+    sentry issues view ISSUE-123
+    sentry issues resolve ISSUE-123
+    sentry config show")]
 pub struct Cli {
     /// Sentry server URL (default: https://sentry.io)
     #[arg(long, global = true)]
@@ -25,7 +31,15 @@ pub struct Cli {
     #[arg(long, global = true)]
     pub token: Option<String>,
 
-    /// Enable verbose output
+    /// Output format (table, json, compact)
+    #[arg(long, short = 'O', global = true, value_enum, default_value = "table")]
+    pub format: OutputFormat,
+
+    /// Suppress success messages
+    #[arg(long, short, global = true)]
+    pub quiet: bool,
+
+    /// Enable verbose output (show error chains)
     #[arg(long, short, global = true)]
     pub verbose: bool,
 
@@ -36,16 +50,29 @@ pub struct Cli {
 #[derive(Subcommand)]
 pub enum Commands {
     /// Manage Sentry issues
+    #[command(alias = "i", after_help = "EXAMPLES:
+    sentry issues list --project myproject
+    sentry issues list --status unresolved --limit 50
+    sentry issues view ISSUE-123
+    sentry issues resolve ISSUE-123 ISSUE-456")]
     Issues {
         #[command(subcommand)]
         command: IssuesCommands,
     },
     /// Manage CLI configuration
+    #[command(alias = "cfg", after_help = "EXAMPLES:
+    sentry config init
+    sentry config show
+    sentry config set default_org myorg")]
     Config {
         #[command(subcommand)]
         command: ConfigCommands,
     },
     /// Generate shell completions
+    #[command(after_help = "EXAMPLES:
+    sentry completions bash > ~/.bash_completion.d/sentry
+    sentry completions zsh > ~/.zfunc/_sentry
+    sentry completions fish > ~/.config/fish/completions/sentry.fish")]
     Completions {
         /// Shell to generate completions for
         #[arg(value_enum)]
@@ -56,6 +83,10 @@ pub enum Commands {
 #[derive(Subcommand)]
 pub enum IssuesCommands {
     /// List issues with optional filtering
+    #[command(alias = "ls", after_help = "EXAMPLES:
+    sentry issues list
+    sentry issues list --project myproject --status unresolved
+    sentry issues list --query \"is:unresolved\" --limit 100")]
     List {
         /// Filter by project slug(s), comma-separated
         #[arg(long, short)]
@@ -77,26 +108,24 @@ pub enum IssuesCommands {
         #[arg(long, default_value = "25")]
         limit: u32,
 
-        /// Output format
-        #[arg(long, short = 'O', value_enum, default_value = "table")]
-        output: OutputFormat,
-
         /// Fetch all pages (may be slow for large result sets)
         #[arg(long)]
         all: bool,
     },
 
     /// View detailed issue information
+    #[command(alias = "show", alias = "v", after_help = "EXAMPLES:
+    sentry issues view ISSUE-123
+    sentry issues view 12345678")]
     View {
         /// Issue ID or short ID
         issue_id: String,
-
-        /// Output format
-        #[arg(long, short = 'O', value_enum, default_value = "table")]
-        output: OutputFormat,
     },
 
     /// Resolve one or more issues
+    #[command(alias = "r", after_help = "EXAMPLES:
+    sentry issues resolve ISSUE-123
+    sentry issues resolve ISSUE-123 ISSUE-456 --in-next-release")]
     Resolve {
         /// Issue ID(s) to resolve
         #[arg(required = true)]
@@ -112,6 +141,8 @@ pub enum IssuesCommands {
     },
 
     /// Unresolve one or more issues
+    #[command(after_help = "EXAMPLES:
+    sentry issues unresolve ISSUE-123")]
     Unresolve {
         /// Issue ID(s) to unresolve
         #[arg(required = true)]
@@ -119,6 +150,10 @@ pub enum IssuesCommands {
     },
 
     /// Assign issue(s) to a user or team
+    #[command(alias = "a", after_help = "EXAMPLES:
+    sentry issues assign ISSUE-123 --to user@example.com
+    sentry issues assign ISSUE-123 --to team:backend
+    sentry issues assign ISSUE-123 --unassign")]
     Assign {
         /// Issue ID(s) to assign
         #[arg(required = true)]
@@ -134,6 +169,10 @@ pub enum IssuesCommands {
     },
 
     /// Ignore issue(s)
+    #[command(after_help = "EXAMPLES:
+    sentry issues ignore ISSUE-123 --duration 60
+    sentry issues ignore ISSUE-123 --count 100
+    sentry issues ignore ISSUE-123 --until-escalating")]
     Ignore {
         /// Issue ID(s) to ignore
         #[arg(required = true)]
@@ -153,6 +192,8 @@ pub enum IssuesCommands {
     },
 
     /// Delete issue(s)
+    #[command(after_help = "EXAMPLES:
+    sentry issues delete ISSUE-123 --confirm")]
     Delete {
         /// Issue ID(s) to delete
         #[arg(required = true)]
@@ -164,6 +205,8 @@ pub enum IssuesCommands {
     },
 
     /// Merge multiple issues into one
+    #[command(after_help = "EXAMPLES:
+    sentry issues merge ISSUE-123 ISSUE-456 ISSUE-789")]
     Merge {
         /// Primary issue ID (issues will be merged into this one)
         primary_id: String,
@@ -177,12 +220,19 @@ pub enum IssuesCommands {
 #[derive(Subcommand)]
 pub enum ConfigCommands {
     /// Create default config file
+    #[command(after_help = "EXAMPLES:
+    sentry config init")]
     Init,
 
     /// Display current configuration
+    #[command(after_help = "EXAMPLES:
+    sentry config show")]
     Show,
 
     /// Set a configuration value
+    #[command(after_help = "EXAMPLES:
+    sentry config set default_org myorg
+    sentry config set auth_token sk-...")]
     Set {
         /// Configuration key
         key: String,
